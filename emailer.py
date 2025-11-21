@@ -10,6 +10,10 @@ import smtplib
 import paramiko
 from emails import Emails  # Assumes emails.py is in the same repo
 
+# --- LOAD DOTENV (For Local Dev Only) ---
+from dotenv import load_dotenv
+load_dotenv() # This does nothing if no .env file is present (like on GitHub)
+
 # --- CONFIGURATION (Loaded from GitHub Secrets) ---
 SSH_HOST = "unix.sussex.ac.uk"  # Or the specific IP/Host you use
 SSH_USER = os.environ.get("SUSSEX_USER")
