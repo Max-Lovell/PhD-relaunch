@@ -59,42 +59,45 @@ def process_and_send():
     survey_names = ['pre', 'day_1', 'day_2', 'day_3', 'day_4', 'day_5',
                     'day_6', 'day_7', 'day_8', 'day_9', 'day_10', 'post']
 
-    # Simplified for brevity - ensure these match your actual IDs
-    surveys = {'pre': ['SV_6liqwhsa4LJndL7'],
-               'day_1': ['SV_efYBX7JoyriIFed', 'SV_6yxDEodJtXUpYUZ'],
-               'day_2': ['SV_8tRRT3RDUgZjLmJ', 'SV_eyX5P5Dss4qbcIR'],
-               'day_3': ['SV_7P4fccFwsHijQFf', 'SV_2gJKPLNxfUEnGWV'],
-               'day_4': ['SV_cHZ2uoqcwNYHtWJ', 'SV_246gE20EMlJPFvT'],
-               'day_5': ['SV_4JGPLlcIXn9ikjH', 'SV_eaiZkPQlw92Rks5'],
-               'day_6': ['SV_6X6g76pH3IPip0N', 'SV_4SkXvAykwSHD2Sx'],
-               'day_7': ['SV_b8SuzWGpqSAk549', 'SV_8ffEaZSjf0lxdGd'],
-               'day_8': ['SV_br3SCsLmRnzwEIt', 'SV_00dnZDoRJhItER7'],
-               'day_9': ['SV_0d4h7wpObx8Fwnb', 'SV_4Vdaii451unzstD'],
-               'day_10': ['SV_cUXO3opuPOK9lDn', 'SV_b9mrVYWMbVU7CXH'],
-               'post': ['SV_a99FGPniDPAO6b3'],
-               'materials': ['SV_1Y1cpZndfWrXoEu']}
+    # Survey IDs (from your original uploaded file)
+    surveys = {
+        'pre': ['SV_6liqwhsa4LJndL7'],
+        'day_1': ['SV_efYBX7JoyriIFed', 'SV_6yxDEodJtXUpYUZ'],
+        'day_2': ['SV_8tRRT3RDUgZjLmJ', 'SV_eyX5P5Dss4qbcIR'],
+        'day_3': ['SV_7P4fccFwsHijQFf', 'SV_2gJKPLNxfUEnGWV'],
+        'day_4': ['SV_cHZ2uoqcwNYHtWJ', 'SV_246gE20EMlJPFvT'],
+        'day_5': ['SV_4JGPLlcIXn9ikjH', 'SV_eaiZkPQlw92Rks5'],
+        'day_6': ['SV_6X6g76pH3IPip0N', 'SV_4SkXvAykwSHD2Sx'],
+        'day_7': ['SV_b8SuzWGpqSAk549', 'SV_8ffEaZSjf0lxdGd'],
+        'day_8': ['SV_br3SCsLmRnzwEIt', 'SV_00dnZDoRJhItER7'],
+        'day_9': ['SV_0d4h7wpObx8Fwnb', 'SV_4Vdaii451unzstD'],
+        'day_10': ['SV_cUXO3opuPOK9lDn', 'SV_b9mrVYWMbVU7CXH'],
+        'post': ['SV_a99FGPniDPAO6b3'],
+        'materials': ['SV_1Y1cpZndfWrXoEu']
+    }
 
-    # Use relative path for GitHub Actions
+    # 1. LOAD DATA
     file_list = glob.glob('webservice/*.json')
     datal = []
 
     for file in file_list:
         with open(file) as f:
-            datad = json.load(f)
-            for key, value in surveys.items():
-                if datad["survey"] in value:
-                    # Normalizing data structure
-                    entry = {'email': datad["email"]}
-                    if "condition" in datad:
-                        entry['condition'] = datad["condition"]
-                    entry[key] = datad["date"]
-                    datal.append(entry)
+            try:
+                datad = json.load(f)
+                for key, value in surveys.items():
+                    if datad["survey"] in value:
+                        entry = {'email': datad["email"]}
+                        if "condition" in datad:
+                            entry['condition'] = datad["condition"]
+                        entry[key] = datad["date"]
+                        datal.append(entry)
+            except json.JSONDecodeError:
+                continue
 
     datac = defaultdict(dict)
     for d in datal:
         datac[d["email"]].update(d)
 
-    # Construct DataFrame
     datafl = []
     for d in list(datac.values()):
         datafl.append(pd.DataFrame([d]))
@@ -104,13 +107,12 @@ def process_and_send():
         return
 
     dataset = pd.concat(datafl)
-    # Ensure columns exist to prevent errors if no one has reached 'day_10' yet
+    # Ensure all columns exist
     for col in survey_names:
         if col not in dataset.columns:
             dataset[col] = None
 
-    # --- 3. EMAIL LOGIC ---
-    # Connect to Gmail SMTP once (more efficient than connecting per user)
+    # 2. CONNECT TO GMAIL
     try:
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(GMAIL_USER, GMAIL_PASS)
@@ -120,28 +122,26 @@ def process_and_send():
 
     emails_sent = 0
 
+    # 3. ITERATE PARTICIPANTS
     for index, row in dataset.iterrows():
-        # Your original logic to find the last completed survey
         row_na = row.dropna()
-        # Skip if essentially empty
         if len(row_na) <= 2: continue
 
-        # Identify last date entry (logic from your script)
-        # Note: This relies on the last column being the date. 
-        # Ensure your dataframe columns are ordered or logic filters for dates.
+        # Get last completion date
         try:
             last_date_str = row_na.iloc[-1]
             datef = dt.datetime.strptime(last_date_str, "%m/%d/%Y")
         except (ValueError, TypeError):
-            continue  # Not a date or valid row
+            continue
 
         today = dt.datetime.today()
         elapsed = today - datef
-
         last_survey = row_na.index[-1]
 
-        # --- CONDITIONS (Copied from your script) ---
-        if last_survey == 'post' or (row.get('condition') == 'control' and (elapsed.days < 23 or elapsed.days > 24)):
+        # Skip if completed post-test or invalid control range
+        if last_survey == 'post':
+            continue
+        if row.get('condition') == 'control' and (elapsed.days < 20 or elapsed.days > 23):
             continue
 
         try:
@@ -151,7 +151,7 @@ def process_and_send():
             continue
 
         # Determine Survey ID
-        if next_survey == 'post' or elapsed.days > 4 or (row.get('condition') == 'control' and elapsed.days == 23):
+        if next_survey == 'post' or elapsed.days > 4 or (row.get('condition') == 'control' and elapsed.days >= 20):
             survey_ID = str(surveys['post'][0])
         elif row.get('condition') == 'mental':
             survey_ID = str(surveys[next_survey][0])
@@ -163,12 +163,11 @@ def process_and_send():
         survey_url = "https://universityofsussex.eu.qualtrics.com/jfe/form/" + survey_ID + "?RecipientEmail=" + row[
             'email']
 
-        # Determine Email Body
+        # Determine Email Body Type
         email_body = None
-        reminder = ""  # Default
 
         if row.get('condition') == 'control':
-            if elapsed.days in [22, 23]:
+            if elapsed.days in [20, 23]:
                 email_body = 'control_post'
         elif row.get('condition') in ['mental', 'world']:
             if next_survey == 'post' or elapsed.days > 4:
@@ -182,46 +181,81 @@ def process_and_send():
 
         if not email_body: continue
 
-        # Determine Reminder Status
+        # --- CORE LOGIC BLOCK: WHEN TO SEND ---
+        reminder = ""
+        should_send = False
+
+        # A. CONTROL GROUP
         if row.get('condition') == 'control':
-            if elapsed.days == 22:
+            if elapsed.days == 20:
                 reminder = 'reminder_post'
+                should_send = True
             elif elapsed.days == 23:
                 reminder = 'reminder_post_final'
+                should_send = True
+
+        # B. POST-COURSE SURVEY (Standard completion)
         elif next_survey == 'post':
-            if elapsed.days == 2:
+            if elapsed.days == 1:
+                reminder = ''
+                should_send = True
+            elif elapsed.days == 2:
                 reminder = 'reminder_post'
+                should_send = True
             elif elapsed.days == 3:
                 reminder = 'reminder_post_final'
-            else:
-                continue
+                should_send = True
+
+        # C. DAY 1 (First Day Logic)
         elif next_survey == 'day_1':
-            if elapsed.days == 2:
-                reminder = 'reminder_days'
+            if elapsed.days == 1:
+                reminder = ''  # Standard email
+                should_send = True
+            elif elapsed.days == 2:
+                reminder = 'reminder_days'  # Reminder 1
+                should_send = True
             elif elapsed.days == 3:
-                reminder = 'reminder_days_final'
+                reminder = 'reminder_days_final'  # Reminder 2 (Using final text, or swap to standard reminder if preferred)
+                should_send = True
             elif elapsed.days == 4:
+                reminder = 'reminder_days_final'  # Reminder 3 (Final)
+                should_send = True
+            elif elapsed.days == 5:
                 reminder = ''
+                email_body = 'dropout'  # Trigger Dropout
+                should_send = True
+            elif elapsed.days == 8:
+                reminder = 'reminder_dropout'  # Dropout follow-up
                 email_body = 'dropout'
-            elif elapsed.days == 7:
-                reminder = 'reminder_dropout'
-                email_body = 'dropout'
-            else:
-                continue
-        elif elapsed.days == 3:
-            reminder = 'reminder_days'
-        elif elapsed.days == 4:
-            reminder = 'reminder_days_final'
-        elif elapsed.days == 5:
-            reminder = ''
-            email_body = 'dropout'
-        elif elapsed.days == 8:
-            reminder = 'reminder_dropout'
-            email_body = 'dropout'
+                should_send = True
+
+        # D. DAILY PRACTICE (Days 2-10)
         else:
+            if elapsed.days == 1:
+                reminder = ''  # Standard email
+                should_send = True
+            elif elapsed.days == 2:
+                reminder = 'reminder_days'  # Reminder 1
+                should_send = True
+            elif elapsed.days == 3:
+                reminder = 'reminder_days'  # Reminder 2
+                should_send = True
+            elif elapsed.days == 4:
+                reminder = 'reminder_days_final'  # Reminder 3 (Final)
+                should_send = True
+            elif elapsed.days == 5:
+                reminder = ''
+                email_body = 'dropout'  # Trigger Dropout
+                should_send = True
+            elif elapsed.days == 8:
+                reminder = 'reminder_dropout'  # Dropout follow-up
+                email_body = 'dropout'
+                should_send = True
+
+        if not should_send:
             continue
 
-        # --- SENDING ---
+        # 4. CONSTRUCT AND SEND
         footer = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         email_class = Emails(reminder, email_body, survey_url, footer)
 
@@ -235,14 +269,14 @@ def process_and_send():
 
         try:
             server.sendmail(GMAIL_USER, row['email'], msg.as_string())
-            print(f"Sent: {row['email']} | Type: {email_body} | Reminder: {reminder}")
+            print(
+                f"Sent: {row['email']} | Survey: {next_survey} | Day: {elapsed.days} | Type: {reminder or 'Standard'}")
             emails_sent += 1
         except Exception as e:
             print(f"Error sending to {row['email']}: {e}")
 
     server.quit()
     print(f"Run Complete. Total emails sent: {emails_sent}")
-
 
 if __name__ == "__main__":
     process_and_send()
