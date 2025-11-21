@@ -38,17 +38,31 @@ def download_data():
         ssh.connect(SSH_HOST, username=SSH_USER, password=SSH_PASS)
         sftp = ssh.open_sftp()
 
-        # List files in remote directory
-        files = sftp.listdir(REMOTE_PATH)
-        count = 0
-        for file in files:
-            if file.endswith(".json"):
+        # 1. Get all files
+        all_files = sftp.listdir(REMOTE_PATH)
+
+        # 2. Filter first to get only the JSONs
+        json_files = [f for f in all_files if f.endswith(".json")]
+        total_files = len(json_files)
+
+        print(f"Found {total_files} JSON files. Starting download...")
+
+        # 3. Iterate with a counter (enumerate)
+        if total_files > 0:
+            for i, file in enumerate(json_files, 1):  # Start counting at 1
                 remote_file = os.path.join(REMOTE_PATH, file).replace("\\", "/")
                 local_file = os.path.join(local_dir, file)
-                sftp.get(remote_file, local_file)
-                count += 1
 
-        print(f"Downloaded {count} JSON files.")
+                sftp.get(remote_file, local_file)
+
+                # Calculate percentage
+                percent = (i / total_files) * 100
+
+                # Print progress (e.g., "Downloaded 5/20 (25.0%)")
+                print(f"Downloaded {i}/{total_files} ({percent:.1f}%)")
+        else:
+            print("No new JSON files found on server.")
+
         sftp.close()
         ssh.close()
     except Exception as e:
@@ -59,6 +73,7 @@ def download_data():
 # --- 2. PROCESS DATA ---
 def process_and_send():
     download_data()
+    print("Data Downloaded, sending emails...")
 
     survey_names = ['pre', 'day_1', 'day_2', 'day_3', 'day_4', 'day_5',
                     'day_6', 'day_7', 'day_8', 'day_9', 'day_10', 'post']
@@ -87,6 +102,7 @@ def process_and_send():
     for file in file_list:
         with open(file) as f:
             try:
+                print("Opening webservice file ...")
                 datad = json.load(f)
                 for key, value in surveys.items():
                     if datad["survey"] in value:
@@ -118,6 +134,7 @@ def process_and_send():
 
     # 2. CONNECT TO GMAIL
     try:
+        print("Connecting to gmail...")
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(GMAIL_USER, GMAIL_PASS)
     except Exception as e:
@@ -127,7 +144,11 @@ def process_and_send():
     emails_sent = 0
 
     # 3. ITERATE PARTICIPANTS
-    for index, row in dataset.iterrows():
+    total_participants = len(dataset)
+    for i, (index, row) in enumerate(dataset.iterrows(), 1):
+
+        print(f"Checking participant {i}/{total_participants}")
+
         row_na = row.dropna()
         if len(row_na) <= 2: continue
 
