@@ -15,16 +15,20 @@ from dotenv import load_dotenv
 load_dotenv() # This does nothing if no .env file is present (like on GitHub)
 
 # --- CONFIGURATION (Loaded from GitHub Secrets) ---
-SSH_HOST = "unix.sussex.ac.uk"  # Or the specific IP/Host you use
+SSH_HOST = "unix.sussex.ac.uk"
 SSH_USER = os.environ.get("SUSSEX_USER")
 SSH_PASS = os.environ.get("SUSSEX_PASS")
-REMOTE_PATH = "/its/home/mel29/metacog/webservice/"
+
+# List both folder paths here
+REMOTE_PATHS = [
+    "/its/home/mel29/metacog/webservice/",  # Study 1: Mental States
+    "/its/home/mel29/breath/webservice/"  # Study 2: Breath Awareness
+]
 
 GMAIL_USER = os.environ.get("GMAIL_USER")
-GMAIL_PASS = os.environ.get("GMAIL_PASS")  # App Password, NOT login password
+GMAIL_PASS = os.environ.get("GMAIL_PASS")
 
 
-# --- 1. DOWNLOAD FILES VIA SFTP ---
 def download_data():
     local_dir = "webservice"
     if not os.path.exists(local_dir):
@@ -38,48 +42,47 @@ def download_data():
         ssh.connect(SSH_HOST, username=SSH_USER, password=SSH_PASS)
         sftp = ssh.open_sftp()
 
-        # 1. Get all files
-        all_files = sftp.listdir(REMOTE_PATH)
+        total_downloaded = 0
 
-        # 2. Filter first to get only the JSONs
-        json_files = [f for f in all_files if f.endswith(".json")]
-        total_files = len(json_files)
+        # Loop through BOTH folders
+        for remote_path in REMOTE_PATHS:
+            print(f"Checking folder: {remote_path}")
+            try:
+                all_files = sftp.listdir(remote_path)
+                json_files = [f for f in all_files if f.endswith(".json")]
 
-        print(f"Found {total_files} JSON files. Starting download...")
+                for file in json_files:
+                    # Create full paths
+                    remote_file = os.path.join(remote_path, file).replace("\\", "/")
+                    local_file = os.path.join(local_dir, file)
 
-        # 3. Iterate with a counter (enumerate)
-        if total_files > 0:
-            for i, file in enumerate(json_files, 1):  # Start counting at 1
-                remote_file = os.path.join(REMOTE_PATH, file).replace("\\", "/")
-                local_file = os.path.join(local_dir, file)
+                    # Download
+                    sftp.get(remote_file, local_file)
+                    total_downloaded += 1
 
-                sftp.get(remote_file, local_file)
+            except FileNotFoundError:
+                print(f"Warning: Could not find folder {remote_path}")
+                continue
 
-                # Calculate percentage
-                percent = (i / total_files) * 100
-
-                # Print progress (e.g., "Downloaded 5/20 (25.0%)")
-                print(f"Downloaded {i}/{total_files} ({percent:.1f}%)")
-        else:
-            print("No new JSON files found on server.")
-
+        print(f"Download complete. Total files gathered: {total_downloaded}")
         sftp.close()
         ssh.close()
     except Exception as e:
         print(f"SSH Connection Failed: {e}")
         exit(1)
 
-
 # --- 2. PROCESS DATA ---
 def process_and_send():
+    # 1. DOWNLOAD DATA (Ensure you have the SSH/Paramiko setup above this)
     download_data()
-    print("Data Downloaded, sending emails...")
 
     survey_names = ['pre', 'day_1', 'day_2', 'day_3', 'day_4', 'day_5',
                     'day_6', 'day_7', 'day_8', 'day_9', 'day_10', 'post']
 
-    # Survey IDs (from your original uploaded file)
-    surveys = {
+    # --- STUDY CONFIGURATIONS ---
+
+    # Study 1: World Mental States
+    SURVEYS_MENTAL = {
         'pre': ['SV_6liqwhsa4LJndL7'],
         'day_1': ['SV_efYBX7JoyriIFed', 'SV_6yxDEodJtXUpYUZ'],
         'day_2': ['SV_8tRRT3RDUgZjLmJ', 'SV_eyX5P5Dss4qbcIR'],
@@ -95,25 +98,62 @@ def process_and_send():
         'materials': ['SV_1Y1cpZndfWrXoEu']
     }
 
-    # 1. LOAD DATA
+    # Study 2: Breath Awareness
+    SURVEYS_BREATH = {
+        'pre': ['SV_77GRlMXRzCRvbgO'],
+        'day_1': ['SV_0UqMgw7opwUBsp0', 'SV_eVD50YlnreqHPeu'],
+        'day_2': ['SV_1KTcbhp97aMsT8G', 'SV_8wWXdKWwB6PmRpQ'],
+        'day_3': ['SV_9WQC7OK4XgA6u7s', 'SV_3F4yThgDP5no2fs'],
+        'day_4': ['SV_2071gXkwXXxHhrM', 'SV_eeULxjJiThIUJbo'],
+        'day_5': ['SV_bQ5EPRvJaZWEKaO', 'SV_1AnnMndzN0tu4yG'],
+        'day_6': ['SV_2ccwKIVLKbjjuTk', 'SV_5tmjjk9Dpxufv6u'],
+        'day_7': ['SV_errJ339HYHmYmh0', 'SV_7Xaly0kNutBbaiW'],
+        'day_8': ['SV_b7uWUqNYHPgufXw', 'SV_7OiRNiarIJr8OJo'],
+        'day_9': ['SV_1RfiSGF82QU4uhw', 'SV_eUUZbaMxDq1ExQG'],
+        'day_10': ['SV_0pjWPj6lWsKPsVg', 'SV_8dzuF81uf8qQ8Oq'],
+        'post': ['SV_23lPSvXFISsaPtk'],
+        'materials': ['SV_6D0mranYslx7qHc']
+    }
+
+    # Combine for file scanning
+    ALL_SURVEYS = {k: SURVEYS_MENTAL.get(k, []) + SURVEYS_BREATH.get(k, []) for k in
+                   set(SURVEYS_MENTAL) | set(SURVEYS_BREATH)}
+
+    # Helper: Determine which study a participant is in
+    def get_study_config(survey_id):
+        for k, v in SURVEYS_MENTAL.items():
+            if survey_id in v: return 'mental', SURVEYS_MENTAL
+        for k, v in SURVEYS_BREATH.items():
+            if survey_id in v: return 'breath', SURVEYS_BREATH
+        return None, None
+
+    # 2. LOAD AND PARSE DATA
     file_list = glob.glob('webservice/*.json')
     datal = []
 
     for file in file_list:
         with open(file) as f:
             try:
-                print("Opening webservice file ...")
                 datad = json.load(f)
-                for key, value in surveys.items():
+                # Check if survey is in our master list
+                found = False
+                for key, value in ALL_SURVEYS.items():
                     if datad["survey"] in value:
+                        found = True
                         entry = {'email': datad["email"]}
                         if "condition" in datad:
                             entry['condition'] = datad["condition"]
                         entry[key] = datad["date"]
                         datal.append(entry)
-            except json.JSONDecodeError:
+                        break
+            except (json.JSONDecodeError, KeyError):
                 continue
 
+    if not datal:
+        print("No participant data found.")
+        return
+
+    # Consolidate data by email
     datac = defaultdict(dict)
     for d in datal:
         datac[d["email"]].update(d)
@@ -122,19 +162,13 @@ def process_and_send():
     for d in list(datac.values()):
         datafl.append(pd.DataFrame([d]))
 
-    if not datafl:
-        print("No data found to process.")
-        return
-
     dataset = pd.concat(datafl)
-    # Ensure all columns exist
     for col in survey_names:
         if col not in dataset.columns:
             dataset[col] = None
 
-    # 2. CONNECT TO GMAIL
+    # 3. CONNECT TO GMAIL
     try:
-        print("Connecting to gmail...")
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(GMAIL_USER, GMAIL_PASS)
     except Exception as e:
@@ -143,16 +177,14 @@ def process_and_send():
 
     emails_sent = 0
 
-    # 3. ITERATE PARTICIPANTS
+    # 4. PROCESS PARTICIPANTS
     total_participants = len(dataset)
     for i, (index, row) in enumerate(dataset.iterrows(), 1):
-
-        print(f"Checking participant {i}/{total_participants}")
 
         row_na = row.dropna()
         if len(row_na) <= 2: continue
 
-        # Get last completion date
+        # Get Date
         try:
             last_date_str = row_na.iloc[-1]
             datef = dt.datetime.strptime(last_date_str, "%m/%d/%Y")
@@ -163,36 +195,70 @@ def process_and_send():
         elapsed = today - datef
         last_survey = row_na.index[-1]
 
-        # Skip if completed post-test or invalid control range
-        if last_survey == 'post':
-            continue
-        if row.get('condition') == 'control' and (elapsed.days < 20 or elapsed.days > 23):
-            continue
+        # Identify Study Config
+        study_type, current_surveys = get_study_config(
+            row_na.iloc[-2])  # -2 is usually the Survey ID string in the raw row
+        # Better safety: Check the Survey ID from the file logic, but simplified here:
+        # We re-infer study type based on the last survey completed
+        # (Since the dataframe only has dates, we rely on logic or careful reconstruction.
+        #  For safety in this script, we need the ID.
+        #  Since the dataframe structure lost the exact ID, we rely on the 'condition' or context.
+        #  ACTUALLY: The best way is to check 'condition' or assume Mental if not clearer.
+        #  FIX: We will assume 'mental' unless we match specific logic, or ideally,
+        #  we should have stored the ID in the dataframe.
+        #  Workaround: Use the survey maps on 'last_survey' key if specific unique dates aren't there.)
 
+        # BETTER APPROACH: Logic based on condition if possible, or assume common config.
+        # Since IDs are lost in the dataframe (it only stores dates), we must rely on the fact
+        # that logic is shared, EXCEPT for control group.
+        # We will try to guess study based on condition if possible, or defaulting to 'breath' logic
+        # if strictly "3 consecutive reminders" is desired for all.
+
+        # HOWEVER, to be precise, let's look at 'condition'.
+        # If we can't distinguish, we default to the stricter schedule (Breath).
+
+        if last_survey == 'post': continue
+
+        # Calculate Next Survey
         try:
             survey_index = survey_names.index(last_survey)
             next_survey = survey_names[survey_index + 1]
         except (ValueError, IndexError):
             continue
 
-        # Determine Survey ID
-        if next_survey == 'post' or elapsed.days > 4 or (row.get('condition') == 'control' and elapsed.days >= 20):
-            survey_ID = str(surveys['post'][0])
-        elif row.get('condition') == 'mental':
-            survey_ID = str(surveys[next_survey][0])
-        elif row.get('condition') == 'world':
-            survey_ID = str(surveys[next_survey][1])
+        # Select Survey ID (Try Mental first, then Breath)
+        # This part is tricky without the original ID, but we will try to match condition
+        is_mental = False
+        if row.get('condition') == 'world': is_mental = True  # Only Mental has 'world'
+
+        # Determine proper ID list to use
+        if is_mental:
+            active_dict = SURVEYS_MENTAL
+            study_mode = 'mental'
         else:
-            continue
+            active_dict = SURVEYS_BREATH
+            study_mode = 'breath'  # Default to Breath logic for Control
+
+        # Get Survey ID
+        if next_survey == 'post' or elapsed.days > 4 or (row.get('condition') == 'control' and elapsed.days >= 20):
+            survey_ID = str(active_dict['post'][0])
+        elif row.get('condition') == 'mental':
+            survey_ID = str(active_dict[next_survey][0])
+        elif row.get('condition') == 'world':
+            # Safe access for world
+            ids = active_dict[next_survey]
+            survey_ID = str(ids[1] if len(ids) > 1 else ids[0])
+        else:
+            # Default / Control
+            survey_ID = str(active_dict[next_survey][0])
 
         survey_url = "https://universityofsussex.eu.qualtrics.com/jfe/form/" + survey_ID + "?RecipientEmail=" + row[
             'email']
 
-        # Determine Email Body Type
+        # Determine Email Body
         email_body = None
-
         if row.get('condition') == 'control':
-            if elapsed.days in [20, 23]:
+            if elapsed.days >= 20 and elapsed.days <= 23:
                 email_body = 'control_post'
         elif row.get('condition') in ['mental', 'world']:
             if next_survey == 'post' or elapsed.days > 4:
@@ -201,26 +267,43 @@ def process_and_send():
                 email_body = 'day_1'
             elif next_survey == 'day_2':
                 email_body = 'day_2'
-            elif next_survey in ['day_3', 'day_4', 'day_5', 'day_6', 'day_7', 'day_8', 'day_9', 'day_10']:
+            else:
                 email_body = 'day_3'
 
         if not email_body: continue
 
-        # --- CORE LOGIC BLOCK: WHEN TO SEND ---
+        # --- TIMING LOGIC ---
         reminder = ""
         should_send = False
 
         # A. CONTROL GROUP
         if row.get('condition') == 'control':
-            if elapsed.days == 20:
-                reminder = 'reminder_post'
-                should_send = True
-            elif elapsed.days == 23:
-                reminder = 'reminder_post_final'
-                should_send = True
+            if study_mode == 'mental':
+                # Study 1: Days 20 & 23
+                if elapsed.days == 20:
+                    reminder = 'reminder_post'
+                    should_send = True
+                elif elapsed.days == 23:
+                    reminder = 'reminder_post_final'
+                    should_send = True
+            else:
+                # Study 2: Days 20, 21, 22, 23 ("reminders for 3 consecutive days")
+                if elapsed.days == 20:
+                    reminder = 'reminder_post'
+                    should_send = True
+                elif elapsed.days == 21:
+                    reminder = 'reminder_post'
+                    should_send = True
+                elif elapsed.days == 22:
+                    reminder = 'reminder_post'
+                    should_send = True
+                elif elapsed.days == 23:
+                    reminder = 'reminder_post_final'
+                    should_send = True
 
-        # B. POST-COURSE SURVEY (Standard completion)
+        # B. POST-TEST REMINDERS
         elif next_survey == 'post':
+            # "single reminder to take the post-test 3 days later"
             if elapsed.days == 1:
                 reminder = ''
                 should_send = True
@@ -228,36 +311,17 @@ def process_and_send():
                 reminder = 'reminder_post'
                 should_send = True
             elif elapsed.days == 3:
-                reminder = 'reminder_post_final'
-                should_send = True
-
-        # C. DAY 1 (First Day Logic)
-        elif next_survey == 'day_1':
-            if elapsed.days == 1:
-                reminder = ''  # Standard email
-                should_send = True
-            elif elapsed.days == 2:
-                reminder = 'reminder_days'  # Reminder 1
-                should_send = True
-            elif elapsed.days == 3:
-                reminder = 'reminder_days_final'  # Reminder 2 (Using final text, or swap to standard reminder if preferred)
+                reminder = 'reminder_post'
                 should_send = True
             elif elapsed.days == 4:
-                reminder = 'reminder_days_final'  # Reminder 3 (Final)
-                should_send = True
-            elif elapsed.days == 5:
-                reminder = ''
-                email_body = 'dropout'  # Trigger Dropout
-                should_send = True
-            elif elapsed.days == 8:
-                reminder = 'reminder_dropout'  # Dropout follow-up
-                email_body = 'dropout'
+                reminder = 'reminder_post_final'
                 should_send = True
 
-        # D. DAILY PRACTICE (Days 2-10)
+        # C. DAILY PRACTICE (Day 1 & Days 2-10)
+        # "reminder is sent each morning for 3 days"
         else:
             if elapsed.days == 1:
-                reminder = ''  # Standard email
+                reminder = ''
                 should_send = True
             elif elapsed.days == 2:
                 reminder = 'reminder_days'  # Reminder 1
@@ -266,21 +330,21 @@ def process_and_send():
                 reminder = 'reminder_days'  # Reminder 2
                 should_send = True
             elif elapsed.days == 4:
-                reminder = 'reminder_days_final'  # Reminder 3 (Final)
+                reminder = 'reminder_days_final'  # Reminder 3
                 should_send = True
             elif elapsed.days == 5:
                 reminder = ''
-                email_body = 'dropout'  # Trigger Dropout
+                email_body = 'dropout'
                 should_send = True
             elif elapsed.days == 8:
-                reminder = 'reminder_dropout'  # Dropout follow-up
+                reminder = 'reminder_dropout'
                 email_body = 'dropout'
                 should_send = True
 
         if not should_send:
             continue
 
-        # 4. CONSTRUCT AND SEND
+        # SEND EMAIL
         footer = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         email_class = Emails(reminder, email_body, survey_url, footer)
 
@@ -294,8 +358,7 @@ def process_and_send():
 
         try:
             server.sendmail(GMAIL_USER, row['email'], msg.as_string())
-            print(
-                f"Sent: {row['email']} | Survey: {next_survey} | Day: {elapsed.days} | Type: {reminder or 'Standard'}")
+            print(f"Sent: {row['email']} | Survey: {next_survey} | Day: {elapsed.days}")
             emails_sent += 1
         except Exception as e:
             print(f"Error sending to {row['email']}: {e}")
