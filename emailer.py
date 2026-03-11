@@ -76,6 +76,7 @@ def process_and_send():
                     'day_6', 'day_7', 'day_8', 'day_9', 'day_10', 'post']
 
     # --- STUDY CONFIGURATIONS ---
+    # 0 = mental states group, 1 = world group
     SURVEYS_MENTAL = {
         'pre': ['SV_6liqwhsa4LJndL7'],
         'day_1': ['SV_efYBX7JoyriIFed', 'SV_6yxDEodJtXUpYUZ'],
@@ -197,6 +198,7 @@ def process_and_send():
         last_survey = row_na.index[-1]
 
         if last_survey == 'post': continue
+        if elapsed.days > 30: continue  # Skip stale data — no action needed after 30 days
 
         try:
             survey_index = survey_names.index(last_survey)
