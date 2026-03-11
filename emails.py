@@ -40,6 +40,9 @@ class Emails:
         elif self.reminder == '':
             reminder = """\
                 """
+        else:
+            reminder = ""
+            print(f"Warning: Unknown reminder type '{self.reminder}' in make_email()")
 
         # Set main email body
         if self.body == 'day_1':
@@ -48,10 +51,10 @@ class Emails:
                 The first meditation session (preceded by an induction and initial survey) can be found at the following link:<br/>
                 <a href="{self.survey_url}">Take the survey</a></p>
                 <p><i>Or copy and paste the URL below into your internet browser:</i><br/><i>{self.survey_url}</i></p>
-                <p>We'll send you a reminder email if you don't manage to complete the session today.</br>
-                Note that after 3 reminders we will assume you have dropped out of the study, and will invite you to take the post-course follow-up survey.</br>
+                <p>We'll send you a reminder email if you don't manage to complete the session today.<br/>
+                Note that after 3 reminders we will assume you have dropped out of the study, and will invite you to take the post-course follow-up survey.<br/>
                 I will send tomorrow's practice automatically the day after you complete the session linked above.</p>
-                <p>You are welcome to meditate for as long as you like following this first day's practice, or bring this awareness to another activity in your day.</br>
+                <p>You are welcome to meditate for as long as you like following this first day's practice, or bring this awareness to another activity in your day.<br/>
                 However, we ask that for the ten days of this intervention, you do not look up any information on mindfulness and meditation outside of this study.</p>
                 <p><br/>If you have any questions please contact <i>mel29@sussex.ac.uk.</i><br/><br/>
                 Thanks again! Your help really is appreciated. We believe the research will prove valuable for helping many people.
@@ -68,8 +71,8 @@ class Emails:
                 The more you practice mindfulness makes a difference to the way you experience it.</p>
                 <p>The second practice, and a question about your practice, can be found here: <a href="{self.survey_url}">Take the survey</a></p>
                 <p><i>Or copy and paste the URL below into your internet browser:</i><br/><i>{self.survey_url}</i></p>
-                <p>We'll send you a reminder email if you don't manage to complete the session today.</br>
-                Note that after 3 reminders we will assume you have dropped out of the study, and will invite you to take the post-course follow-up survey.</br>
+                <p>We'll send you a reminder email if you don't manage to complete the session today.<br/>
+                Note that after 3 reminders we will assume you have dropped out of the study, and will invite you to take the post-course follow-up survey.<br/>
                 I will send tomorrow's practice automatically the day after you complete the session linked above.</p>
                 <p>You are welcome to repeat today’s practice as many times as you want, but don’t attempt to go beyond it until tomorrow's session. 
                 Also feel free to tell me about any experiences you had, either during the sitting practice or during other daily activities.</p><br/>
@@ -82,8 +85,8 @@ class Emails:
                 <p>Thank you for completing yesterday’s practice and survey!</p>
                 <p>The next practice, and a question about your practice, can be found here: <a href="{self.survey_url}">Take the survey</a></p>
                 <p><i>Or copy and paste the URL below into your internet browser:</i><br/><i>{self.survey_url}</i></p>
-                <p>We'll send you a reminder email if you don't manage to complete the session today.</br>
-                Note that after 3 reminders we will assume you have dropped out of the study, and will invite you to take the post-course follow-up survey.</br>
+                <p>We'll send you a reminder email if you don't manage to complete the session today.<br/>
+                Note that after 3 reminders we will assume you have dropped out of the study, and will invite you to take the post-course follow-up survey.<br/>
                 I will send tomorrow's practice automatically the day after you complete the session linked above.</p>
                 <p>You are welcome to repeat today’s practice as many times as you want, but don’t attempt to go beyond it until tomorrow's session.<br/>
                 Feel free to tell me about any experiences you had, either during the sitting practice or during other daily activities.
@@ -127,6 +130,10 @@ class Emails:
                 <p><br/><br/>Thanks again,<br/><br/>
                 The Mindfulness research group</p>
                 """
+        else:
+            body = ""
+            print(f"Warning: Unknown body type '{self.body}' in make_email()")
+
         return f"""\
             <html>
               <body>
@@ -167,6 +174,9 @@ class Emails:
         elif self.reminder == '':
             reminder = """\
                 """
+        else:
+            reminder = ""
+            print(f"Warning: Unknown reminder type '{self.reminder}' in make_plaintext()")
 
         if self.body == 'day_1':
             body = f"""\
@@ -267,6 +277,9 @@ class Emails:
 
                 Max Lovell
                 """
+        else:
+            body = ""
+            print(f"Warning: Unknown body type '{self.body}' in make_plaintext()")
 
         return f"""\
             {reminder}
