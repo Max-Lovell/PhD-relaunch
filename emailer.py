@@ -232,7 +232,7 @@ def process_and_send():
         if is_control_group:
             if 20 <= elapsed.days <= 23:
                 email_body = 'control_post'
-        elif condition in ['mental', 'world']:
+        elif condition in ['mental', 'world', 'breath']:
             if next_survey == 'post' or elapsed.days > 4:
                 email_body = 'post'
             elif next_survey == 'day_1':
@@ -252,12 +252,14 @@ def process_and_send():
             if study_mode == 'mental':
                 # Control group logic for Mental
                 if elapsed.days == 20:
-                    reminder, should_send = 'reminder_post', True
+                    reminder, should_send = '', True  # FIX: No reminder text on initial send
                 elif elapsed.days == 23:
                     reminder, should_send = 'reminder_post_final', True
             else:
                 # Control group logic for Breath: 20 days, then 3 consecutive reminders
-                if elapsed.days in [20, 21, 22]:
+                if elapsed.days == 20:
+                    reminder, should_send = '', True  # FIX: No reminder text on initial send
+                elif elapsed.days in [21, 22]:
                     reminder, should_send = 'reminder_post', True
                 elif elapsed.days == 23:
                     reminder, should_send = 'reminder_post_final', True
