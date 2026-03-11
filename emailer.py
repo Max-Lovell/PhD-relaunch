@@ -70,7 +70,7 @@ def download_data():
 
 # --- 2. PROCESS DATA ---
 def process_and_send():
-    # download_data() # COMMENT OUT FOR TESTING
+    download_data() # COMMENT OUT FOR TESTING
 
     survey_names = ['pre', 'day_1', 'day_2', 'day_3', 'day_4', 'day_5',
                     'day_6', 'day_7', 'day_8', 'day_9', 'day_10', 'post']
@@ -301,7 +301,7 @@ def process_and_send():
         msg.attach(MIMEText(email_class.make_email(), "html"))
 
         try:
-            server.sendmail(GMAIL_USER, row['email'], msg.as_string())
+            server.sendmail(GMAIL_USER, row['email'], msg.as_string()) # COMMENT OUT FOR TESTING
             print(f"Sent: {row['email']} | Survey (might be post-test...): {next_survey} | Target ID: {survey_ID} | Day: {elapsed.days}")
             emails_sent += 1
         except Exception as e:
