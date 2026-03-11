@@ -57,7 +57,6 @@ class Emails:
                 Thanks again! Your help really is appreciated. We believe the research will prove valuable for helping many people.
                 <br/><br/><br/>The Mindfulness research group<br/><br/>
                 <p>Please email m.lovell@sussex.ac.uk to unsubscribe from future emails.</p>
-                <br>{self.footer}
                 """
         elif self.body == 'day_2':
             body = f"""\
@@ -77,7 +76,6 @@ class Emails:
                 <br/><b>If you have any questions please contact&nbsp;<i>mel29@sussex.ac.uk.</i></b><br/><br/>
                 The Mindfulness research group</p>
                 <p>Please email m.lovell@sussex.ac.uk to unsubscribe from future emails.</p>
-                <br>{self.footer}
                 """
         elif self.body == 'day_3':
             body = f"""\
@@ -92,7 +90,6 @@ class Emails:
                 <br/><b>If you have any questions please contact me at <i>mel29@sussex.ac.uk.</i></b>
                 <br/><br/>The Mindfulness research group</p>
                 <p>Please email m.lovell@sussex.ac.uk to unsubscribe from future emails.</p>
-                <br>{self.footer}
                 """
         elif self.body == 'post':
             body = f"""\
