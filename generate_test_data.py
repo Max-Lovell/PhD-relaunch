@@ -34,6 +34,34 @@ scenarios = [
     # 5. Too Old: Finished 'day_1' 50 days ago -> Should be IGNORED
     {"filename": "test_ignore.json", "email": gmail_stub+"+ignore@gmail.com",
      "survey": "SV_efYBX7JoyriIFed", "date": get_date(50), "condition": "mental"},
+
+    # 6. Breath Reminder Path: Finished 'day_2' 3 days ago -> Should get Reminder 2
+    {"filename": "test_breath_reminder.json", "email": gmail_stub+"+brem@gmail.com",
+     "survey": "SV_1KTcbhp97aMsT8G", "date": get_date(3), "condition": "breath"},
+
+    # 7. Breath Control Group: Finished 'pre' 21 days ago -> Should get 1st Reminder
+    {"filename": "test_breath_control.json", "email": gmail_stub+"+bcon@gmail.com",
+     "survey": "SV_77GRlMXRzCRvbgO", "date": get_date(21), "condition": "control"},
+
+    # --- USER 1: Reminder Path (Finished Day 2, missed Day 3. 3 Days Ago) ---
+    {"filename": "test1_pre.json", "email": f"{gmail_stub}+remind@gmail.com",
+     "survey": "SV_6liqwhsa4LJndL7", "date": get_date(6), "condition": "mental"},
+    {"filename": "test1_day1.json", "email": f"{gmail_stub}+remind@gmail.com",
+     "survey": "SV_efYBX7JoyriIFed", "date": get_date(5)}, # Notice: No condition!
+    {"filename": "test1_day2.json", "email": f"{gmail_stub}+remind@gmail.com",
+     "survey": "SV_8tRRT3RDUgZjLmJ", "date": get_date(3)}, # Last completed survey
+
+    # --- USER 2: Control Group (Finished Pre 20 days ago) ---
+    {"filename": "test2_pre.json", "email": f"{gmail_stub}+control@gmail.com",
+     "survey": "SV_6liqwhsa4LJndL7", "date": get_date(20), "condition": "control"},
+
+    # --- USER 3: Breath Study Dropout (Finished Day 4, 5 days ago) ---
+    {"filename": "test3_pre.json", "email": f"{gmail_stub}+bdrop@gmail.com",
+     "survey": "SV_77GRlMXRzCRvbgO", "date": get_date(10), "condition": "breath"},
+    {"filename": "test3_day1.json", "email": f"{gmail_stub}+bdrop@gmail.com",
+     "survey": "SV_0UqMgw7opwUBsp0", "date": get_date(9)},
+    {"filename": "test3_day4.json", "email": f"{gmail_stub}+bdrop@gmail.com",
+     "survey": "SV_2071gXkwXXxHhrM", "date": get_date(5)}, # Last completed survey
 ]
 
 # Write files
@@ -41,9 +69,11 @@ for s in scenarios:
     data = {
         "email": s["email"],
         "survey": s["survey"],
-        "date": s["date"],
-        "condition": s["condition"]
+        "date": s["date"]
     }
+    if "condition" in s:
+        data["condition"] = s["condition"]
+
     with open(f'webservice/{s["filename"]}', 'w') as f:
         json.dump(data, f)
 
