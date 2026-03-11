@@ -2,8 +2,8 @@ name: Daily Emailer
 
 on:
   schedule:
-    # Runs at 06:00 UTC every day
-    - cron: '0 6 * * *'
+    # Runs at 07:00 UTC/GMT every day
+    - cron: '0 7 * * *'
   # Allows you to run it manually from the Actions tab for testing
   workflow_dispatch:
 
