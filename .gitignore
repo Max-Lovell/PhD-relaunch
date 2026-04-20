@@ -3,3 +3,22 @@
 /__pycache__
 /webservice
 .DS_Store
+
+# --- Downloaded participant data (may contain emails, regenerated each run) ---
+webservice/
+credit_report/webservice/
+credit_report/gfactor_tasks/
+emailer/webservice/
+
+# --- Generated reports (regenerated each run, personally identifying) ---
+credit_report_mental.csv
+credit_report_breath.csv
+credit_report_gfactor.csv
+credit_report/credit_report_*.csv
+
+# --- Python standard ignores ---
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
