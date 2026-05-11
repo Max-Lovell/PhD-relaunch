@@ -5,21 +5,43 @@ Generates per-study CSVs tracking participant progress and SONA credits.
 - `credit_report.py` — 10-day mindfulness intervention (two studies: mental & breath)
 - `credit_report_gfactor.py` — single-session g-factor study (survey + 4 tasks)
 
-## Setup
+## Setup (macOS)
 
-From the repo root:
+First time on a new machine, from the repo root:
 
 ```bash
+bash venv_setup.sh
+```
+
+This creates a `.venv/`, installs the requirements, and copies `.env.example`
+to `.env` if it doesn't exist yet. Then fill in your Sussex SSH credentials
+in `.env`.
+
+If you'd rather run the steps by hand:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env     # then fill in your Sussex SSH credentials
+cp .env.example .env
 ```
 
 ## Usage
+
+Activate the venv first (every new terminal session):
+
+```bash
+source .venv/bin/activate
+```
+
+Then:
 
 ```bash
 python credit_report/credit_report.py
 python credit_report/credit_report_gfactor.py
 ```
+
+When you're done, `deactivate` returns you to the system Python.
 
 Each script downloads fresh JSONs from the Sussex server and writes its CSV
 next to the script.
@@ -34,6 +56,10 @@ next to the script.
 | `--out-dir PATH` | Override where the CSV is written. |
 
 Repeat runs automatically skip files that are already downloaded and current.
+```bash
+python credit_report/credit_report.py --since 2026-01-01
+python credit_report/credit_report_gfactor.py --since 2026-01-01
+```
 
 ## Mindfulness report output
 
