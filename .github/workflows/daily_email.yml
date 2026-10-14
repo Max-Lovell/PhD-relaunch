@@ -10,8 +10,19 @@ on:
 jobs:
   run-emailer:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write   # needed to re-enable this workflow below
+      contents: read   # needed for checkout
 
     steps:
+    # GitHub disables scheduled workflows in public repos after 60 days without commits.
+    # Re-enabling via the API (a no-op while active) resets that timer. Runs first so a
+    # failing emailer step can't skip it.
+    - name: Keep workflow enabled
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/daily_email.yml/enable"
+
     - name: Checkout code
       uses: actions/checkout@v3
 
